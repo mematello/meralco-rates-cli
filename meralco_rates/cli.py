@@ -11,25 +11,22 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("meralco_rates")
 
 def setup_arg_parser():
-    parser = argparse.ArgumentParser(
-        description="Fetch and parse Meralco Residential Schedule of Rates",
-        epilog="Note: This tool specifically parses the Residential rates block. Power factor/industrial headers are intentionally ignored."
-    )
+    common_parser = argparse.ArgumentParser(add_help=False)
     
     # Global HTTP arguments
-    parser.add_argument(
+    common_parser.add_argument(
         "--timeout",
         type=int,
         default=15,
         help="HTTP timeout in seconds (default: 15)",
     )
-    parser.add_argument(
+    common_parser.add_argument(
         "--retries",
         type=int,
         default=3,
         help="Number of exponential backoff retries for 429/5xx errors (default: 3)",
     )
-    parser.add_argument(
+    common_parser.add_argument(
         "--user-agent",
         type=str,
         default="meralco-rates-cli/0.1.0",
@@ -37,30 +34,40 @@ def setup_arg_parser():
     )
 
     # Output Controls
-    parser.add_argument(
+    common_parser.add_argument(
         "--output",
         choices=["json", "csv"],
         default="json",
         help="Output format (default: json)",
     )
-    parser.add_argument(
+    common_parser.add_argument(
         "--pretty",
         action="store_true",
         help="Pretty-print the JSON output",
     )
-    parser.add_argument(
+    common_parser.add_argument(
         "--out",
         type=str,
         help="File path to save the output (prints to stdout if omitted)",
     )
 
+    parser = argparse.ArgumentParser(
+        description="Fetch and parse Meralco Residential Schedule of Rates",
+        epilog="Note: This tool specifically parses the Residential rates block. Power factor/industrial headers are intentionally ignored."
+    )
+    
+    # Also add arguments to main parser so `meralco-rates --help` shows them
+    # But effectively they are evaluated as part of the subcommand.
+    for action in common_parser._actions:
+        parser._add_action(action)
+
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # Subcommand: latest
-    latest_parser = subparsers.add_parser("latest", help="Fetch the latest published rates")
+    latest_parser = subparsers.add_parser("latest", help="Fetch the latest published rates", parents=[common_parser])
 
     # Subcommand: backfill
-    backfill_parser = subparsers.add_parser("backfill", help="Fetch historical rates for a given range")
+    backfill_parser = subparsers.add_parser("backfill", help="Fetch historical rates for a given range", parents=[common_parser])
     backfill_parser.add_argument("--start", required=True, help="Start month (YYYY-MM)")
     backfill_parser.add_argument("--end", required=True, help="End month (YYYY-MM)")
 
