@@ -53,10 +53,11 @@ def setup_arg_parser():
 
     parser = argparse.ArgumentParser(
         description="Fetch and parse Meralco Residential Schedule of Rates",
-        epilog="Note: This tool specifically parses the Residential rates block. Power factor/industrial headers are intentionally ignored."
+        epilog="Note: This tool specifically parses the Residential rates block. Power factor/industrial headers are intentionally ignored.",
+        conflict_handler='resolve'
     )
     
-    # Also add arguments to main parser so `meralco-rates --help` shows them
+    # Add arguments to main parser so `meralco-rates --help` shows them
     # But effectively they are evaluated as part of the subcommand.
     for action in common_parser._actions:
         parser._add_action(action)
@@ -64,10 +65,10 @@ def setup_arg_parser():
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # Subcommand: latest
-    latest_parser = subparsers.add_parser("latest", help="Fetch the latest published rates", parents=[common_parser])
+    latest_parser = subparsers.add_parser("latest", help="Fetch the latest published rates", parents=[common_parser], conflict_handler='resolve')
 
     # Subcommand: backfill
-    backfill_parser = subparsers.add_parser("backfill", help="Fetch historical rates for a given range", parents=[common_parser])
+    backfill_parser = subparsers.add_parser("backfill", help="Fetch historical rates for a given range", parents=[common_parser], conflict_handler='resolve')
     backfill_parser.add_argument("--start", required=True, help="Start month (YYYY-MM)")
     backfill_parser.add_argument("--end", required=True, help="End month (YYYY-MM)")
 
@@ -162,7 +163,20 @@ def process_items(scraper, items_to_process, args):
 
 def main():
     parser = setup_arg_parser()
+    
+    # Parse known args first to capture global flags passed before the subcommand
+    # because argparse sub-parsers overwrite them with default values if using `parents`.
+    global_args, rest = parser.parse_known_args()
     args = parser.parse_args()
+    
+    # Preserve global flags like --out and --output if specified before subcommand
+    for key, val in vars(global_args).items():
+        if val is not None and val is not False and val != getattr(parser, 'default_values', {}).get(key):
+            setattr(args, key, val)
+    
+    # Update default tracking for output (since we hardcoded default="json" in setup)
+    if not hasattr(args, 'output') or (hasattr(global_args, 'output') and global_args.output != "json"):
+         args.output = global_args.output
 
     scraper = MeralcoRateScraper(
         user_agent=args.user_agent,
