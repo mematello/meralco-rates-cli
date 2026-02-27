@@ -35,7 +35,7 @@ meralco-rates --output csv --out meralco_latest.csv latest
 You can crawl the Meralco archive for a specific range:
 
 ```bash
-meralco-rates --output json --out historical_rates.json backfill --start 2024-01 --end 2024-06
+meralco-rates backfill --start 2024-01 --end 2024-06 --output json --out historical_rates.json
 ```
 
 ## CLI Reference
